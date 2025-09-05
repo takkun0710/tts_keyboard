@@ -3,249 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Keyboard TTS (JP) — キーボードだけで読み上げ</title>
+  <title>シンプルTTS（ショートカット対応／一時停止なし）</title>
   <style>
-    :root{--fg:#111;--bg:#fff;--muted:#6b7280;--accent:#2563eb;--border:#e5e7eb}
-    html,body{height:100%}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans JP',sans-serif;color:var(--fg);background:var(--bg);}
-    header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-    header h1{font-size:16px;margin:0;font-weight:600}
-    header .status{margin-left:auto;font-size:12px;color:var(--muted)}
-    main{max-width:920px;margin:0 auto;padding:16px;display:grid;gap:12px}
-    #input{width:100%;height:55vh;min-height:300px;resize:vertical;font:16px/1.6 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;padding:14px;border:1px solid var(--border);border-radius:8px;outline:none}
-    #input:focus{box-shadow:0 0 0 3px rgba(37,99,235,.25);border-color:var(--accent)}
-    .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:13px}
-    .chip{border:1px solid var(--border);padding:6px 10px;border-radius:999px;background:#fafafa}
-    .kbd{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:2px 6px;background:#fff;color:#111}
-    #help{border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;font-size:14px}
-    details summary{cursor:pointer}
-    footer{padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
-    .sr-only{position:absolute !important;left:-9999px !important;width:1px;height:1px;overflow:hidden}
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans JP',sans-serif; margin: 2em; line-height: 1.6; }
+    textarea { width: 100%; height: 200px; font-size: 16px; }
+    .status { margin-top: 10px; color: #555; }
+    kbd { background: #eee; border: 1px solid #aaa; border-radius: 3px; padding: 2px 4px; font-size: 0.9em; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>キーボード読み上げ（Web Speech API）</h1>
-    <div class="status" id="status">初期化中…</div>
-  </header>
+  <h1>シンプル読み上げ（キーボード操作）</h1>
+  <p>テキストを入力して <kbd>Ctrl</kbd>+<kbd>Enter</kbd> で読み上げ</p>
+  <textarea id="input" placeholder="ここにテキストを入力"></textarea>
+  <div class="status" id="status">準備中…</div>
 
-  <main>
-    <div class="bar" id="info">
-      <span class="chip">音声: <b id="voiceName">未取得</b></span>
-      <span class="chip">性別: <b id="genderLabel">any</b></span>
-      <span class="chip">速度: <b id="rateLabel">1.0</b></span>
-      <span class="chip">ピッチ: <b id="pitchLabel">1.0</b></span>
-      <span class="chip">言語優先: <b id="langLabel">ja</b></span>
-    </div>
-
-    <textarea id="input" placeholder="ここに文字を入力して、Ctrl+Enter で読み上げ。選択範囲があれば、その部分だけ読み上げます。" aria-label="読み上げテキスト" autofocus></textarea>
-
-    <details id="help" open>
-      <summary>ショートカット一覧（マウス不要）</summary>
-      <ul>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> … 読み上げ開始（選択中のみ/または全体）</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">P</span> … 一時停止/再開</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">K</span> … 停止</li>
-        <li><span class="kbd">Alt</span> + <span class="kbd">↑</span>/<span class="kbd">↓</span> … 速度 ±0.1（0.5〜2.5）</li>
-        <li><span class="kbd">Alt</span> + <span class="kbd">→</span>/<span class="kbd">←</span> … ピッチ ±0.1（0.0〜2.0）</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">Alt</span> + <span class="kbd">→</span>/<span class="kbd">←</span> … 音声を次/前へ</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">1</span> … 男性に近い音声へ切替（推定）</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">2</span> … 女性に近い音声へ切替（推定）</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">0</span> … Any（制限なし）</li>
-        <li><span class="kbd">Ctrl</span> + <span class="kbd">/</span> … このヘルプの開閉</li>
-      </ul>
-      <p>注: ブラウザやOSによって利用可能な音声と性別表記は異なります。本ツールでは日本語音声を優先し、名前のヒューリスティックで性別を推定しています。</p>
-    </details>
-  </main>
-
-  <footer>
-    ローカルのみで動作。設定はブラウザに保存されます（localStorage）。動作には Web Speech API（speechSynthesis）が必要です。
-  </footer>
-
-  <div id="live" class="sr-only" aria-live="polite"></div>
+  <h2>ショートカット一覧</h2>
+  <ul>
+    <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> … 読み上げ開始</li>
+    <li><kbd>Ctrl</kbd>+<kbd>K</kbd> … 停止</li>
+    <li><kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> … 再生速度 ±0.1（0.5〜2.5）</li>
+    <li><kbd>Alt</kbd>+<kbd>→</kbd>/<kbd>←</kbd> … ピッチ ±0.1（0.5〜2.0）</li>
+  </ul>
 
 <script>
 (() => {
-  const $ = (id) => document.getElementById(id);
-  const st = {
-    voices: [],
-    filtered: [],
-    idx: 0,
-    gender: 'any',   // 'male' | 'female' | 'any'
-    rate: 1.0,
-    pitch: 1.0,
-    langPref: 'ja',  // 優先言語（先頭一致）
-  };
+  const ta = document.getElementById("input");
+  const status = document.getElementById("status");
+  let fixedVoice = null;
+  let rate = 1.0;
+  let pitch = 1.0;
 
-  // 設定の読み込み
-  try {
-    const saved = JSON.parse(localStorage.getItem('tts_keyboard_state')||'{}');
-    Object.assign(st, saved);
-  } catch(e){}
-
-  const genderHints = {
-    male:  ['Ichiro','Hattori','Naoki','Takeru','Takumi','Ichirou','Shinji','Male','♂'],
-    female:['Haruka','Ayumi','Nanami','Mizuki','Sayaka','Hanako','Female','♀','Airi','Nozomi','Hiyori','Akari','Risa','Seiko','Kyoko','Yui','Naomi','Sakura','Yuka','Aoi','Tomoko','Yukari']
-  };
-
-  function guessGenderByName(name){
-    const n = (name||'').toLowerCase();
-    for(const key of genderHints.male){ if(n.includes(key.toLowerCase())) return 'male'; }
-    for(const key of genderHints.female){ if(n.includes(key.toLowerCase())) return 'female'; }
-    return 'any';
+  // 日本語音声を1つ選択（見つからなければ最初の音声）
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) return;
+    fixedVoice = voices.find(v => (v.lang || "").toLowerCase().startsWith("ja")) || voices[0];
+    status.textContent = "使用音声: " + (fixedVoice.name || "default") + " (" + (fixedVoice.lang || "?") + ")";
   }
 
-  function loadVoices(){
-    let voices = window.speechSynthesis.getVoices();
-    if(!voices || voices.length===0){ return; }
-    // 性別推定を付与
-    st.voices = voices.map(v => ({...v, _gender: guessGenderByName(v.name)}));
-
-    refreshFiltered();
-    ensureIndexInRange();
-    renderStatus('音声を読み込みました');
-    updateLabels();
-  }
-
-  function refreshFiltered(){
-    const langFirst = st.langPref;
-    let list = st.voices;
-
-    // 言語優先（先頭一致）
-    const prefer = list.filter(v => (v.lang||'').toLowerCase().startsWith(langFirst));
-    list = prefer.length ? prefer : list;
-
-    // 性別フィルタ
-    if(st.gender !== 'any'){
-      const g = st.gender;
-      const gList = list.filter(v => v._gender===g);
-      list = gList.length ? gList : list;
-    }
-    st.filtered = list;
-  }
-
-  function ensureIndexInRange(){
-    if(st.filtered.length===0){ st.idx = 0; return; }
-    if(st.idx < 0) st.idx = 0;
-    if(st.idx >= st.filtered.length) st.idx = st.filtered.length - 1;
-  }
-
-  function currentVoice(){
-    return st.filtered[st.idx] || st.voices[0];
-  }
-
-  function persist(){
-    localStorage.setItem('tts_keyboard_state', JSON.stringify({
-      idx: st.idx, gender: st.gender, rate: st.rate, pitch: st.pitch, langPref: st.langPref
-    }));
-  }
-
-  function speak(){
-    const ta = $('input');
-    const text = ta.selectionStart !== ta.selectionEnd ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : ta.value;
-    if(!text.trim()){
-      renderStatus('テキストが空です');
-      return;
-    }
-    try{ speechSynthesis.cancel(); }catch(e){}
+  // 読み上げ
+  function speak() {
+    const text = ta.value.trim();
+    if (!text) { status.textContent = "テキストが空です"; return; }
+    speechSynthesis.cancel(); // 既存を停止してから
     const u = new SpeechSynthesisUtterance(text);
-    const v = currentVoice();
-    if(v) u.voice = v;
-    u.rate = st.rate;
-    u.pitch = st.pitch;
-    // 日本語テキスト時に lang を付与（音声の言語が不明な場合の保険）
-    if(v && v.lang) u.lang = v.lang;
-    u.onend = () => renderStatus('完了');
-    u.onerror = (e) => renderStatus('エラー: ' + (e.error||'unknown'));
-    renderStatus('読み上げ中…');
+    if (fixedVoice) u.voice = fixedVoice;
+    u.rate = rate;
+    u.pitch = pitch;
+    u.onend = () => { status.textContent = "完了"; };
+    u.onerror = (e) => { status.textContent = "エラー: " + e.error; };
+    status.textContent = `読み上げ中…（速度:${rate.toFixed(1)} ピッチ:${pitch.toFixed(1)}）`;
     speechSynthesis.speak(u);
   }
 
-  function pauseOrResume(){
-    if(speechSynthesis.speaking){
-      if(speechSynthesis.paused){ speechSynthesis.resume(); renderStatus('再開'); }
-      else { speechSynthesis.pause(); renderStatus('一時停止'); }
-    }
-  }
-
-  function stop(){
+  // 停止
+  function stop() {
     speechSynthesis.cancel();
-    renderStatus('停止');
+    status.textContent = "停止";
   }
 
-  function nextVoice(dir){
-    if(st.filtered.length === 0){ renderStatus('利用可能な音声が見つかりません'); return; }
-    st.idx = (st.idx + (dir||1) + st.filtered.length) % st.filtered.length;
-    persist();
-    updateLabels();
-  }
-
-  function setGender(g){
-    st.gender = g;
-    refreshFiltered();
-    ensureIndexInRange();
-    persist();
-    updateLabels();
-  }
-
-  function clamp(x, lo, hi){ return Math.min(hi, Math.max(lo, x)); }
-
-  function updateLabels(){
-    const v = currentVoice();
-    $('voiceName').textContent = v ? `${v.name} (${v.lang||'?'})` : '未取得';
-    $('genderLabel').textContent = st.gender;
-    $('rateLabel').textContent = st.rate.toFixed(1);
-    $('pitchLabel').textContent = st.pitch.toFixed(1);
-    $('langLabel').textContent = st.langPref;
-    live(`音声:${v?v.name:'未取得'} 速度:${st.rate.toFixed(1)} ピッチ:${st.pitch.toFixed(1)}`);
-  }
-
-  function renderStatus(msg){
-    $('status').textContent = msg;
-  }
-  function live(msg){
-    $('live').textContent = msg;
-  }
-
-  // キーボード操作
-  document.addEventListener('keydown', (e) => {
-    // ヘルプの開閉
-    if(e.ctrlKey && e.key === '/'){ e.preventDefault(); $('help').open = !$('help').open; return; }
-
-    // 読み上げ開始
-    if(e.ctrlKey && e.key === 'Enter'){ e.preventDefault(); speak(); return; }
-
-    // 一時停止/再開
-    if(e.ctrlKey && (e.key==='p' || e.key==='P')){ e.preventDefault(); pauseOrResume(); return; }
-
-    // 停止
-    if(e.ctrlKey && (e.key==='k' || e.key==='K')){ e.preventDefault(); stop(); return; }
-
-    // 速度
-    if(e.altKey && e.key === 'ArrowUp'){ e.preventDefault(); st.rate = clamp((st.rate+0.1), 0.5, 2.5); persist(); updateLabels(); return; }
-    if(e.altKey && e.key === 'ArrowDown'){ e.preventDefault(); st.rate = clamp((st.rate-0.1), 0.5, 2.5); persist(); updateLabels(); return; }
-
-    // ピッチ
-    if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); st.pitch = clamp((st.pitch+0.1), 0.0, 2.0); persist(); updateLabels(); return; }
-    if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); st.pitch = clamp((st.pitch-0.1), 0.0, 2.0); persist(); updateLabels(); return; }
-
-    // 音声切替
-    if(e.ctrlKey && e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); nextVoice(+1); return; }
-    if(e.ctrlKey && e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); nextVoice(-1); return; }
-
-    // 性別切替のクイックキー
-    if(e.ctrlKey && e.key === '1'){ e.preventDefault(); setGender('male'); renderStatus('男性（推定）'); return; }
-    if(e.ctrlKey && e.key === '2'){ e.preventDefault(); setGender('女性（推定）'); return; }
-    if(e.ctrlKey && e.key === '0'){ e.preventDefault(); setGender('any'); renderStatus('制限なし'); return; }
+  // イベント登録
+  speechSynthesis.onvoiceschanged = pickVoice;
+  window.addEventListener("load", () => {
+    // 一部環境での遅延対策
+    setTimeout(pickVoice, 200);
   });
 
-  // 初期化
-  renderStatus('音声を待機中…');
-  loadVoices(); // すでに取得済みのケース
-  window.speechSynthesis.onvoiceschanged = () => { loadVoices(); };
-
-  // 初回ラベル
-  updateLabels();
+  // キー操作
+  document.addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); speak(); }
+    if (e.ctrlKey && (e.key === "k" || e.key === "K")) { e.preventDefault(); stop(); }
+    if (e.altKey && e.key === "ArrowUp")   { e.preventDefault(); rate = Math.min(2.5, rate + 0.1); status.textContent = `速度:${rate.toFixed(1)}`; }
+    if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); rate = Math.max(0.5, rate - 0.1); status.textContent = `速度:${rate.toFixed(1)}`; }
+    if (e.altKey && e.key === "ArrowRight"){ e.preventDefault(); pitch = Math.min(2.0, pitch + 0.1); status.textContent = `ピッチ:${pitch.toFixed(1)}`; }
+    if (e.altKey && e.key === "ArrowLeft") { e.preventDefault(); pitch = Math.max(0.5, pitch - 0.1); status.textContent = `ピッチ:${pitch.toFixed(1)}`; }
+  });
 })();
 </script>
 </body>
